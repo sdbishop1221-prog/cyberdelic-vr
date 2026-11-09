@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Layout: full-bleed three.js scene (kaleidoscope dome + depth geometry); a scrollable glass setup card
+  /* Layout: full-bleed three.js scene (kaleidoscope dome, crystals, energy column); a scrollable glass setup card
      floats over a live preview; a thin HUD replaces it during a session. Accent follows the live palette. */
   --void:#05040a;
   --glass:rgba(11,9,20,.62);
@@ -18,6 +18,7 @@
   --line:rgba(236,230,255,.15);
   --ink:#f2eefc;
   --dim:#a9a3c0;
+  --caution:#ffd38a;
   --accent:rgb(255,92,210);
   --font-display:"Major Mono Display", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --font-body:"Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -42,6 +43,9 @@ body{font-family:var(--font-body);font-stretch:87.5%;font-size:11px;-webkit-font
 .brand{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1;margin:0;text-shadow:0 0 18px var(--accent);}
 .lead{margin:8px 0 0;color:var(--dim);line-height:1.65;}
 .lead strong{color:var(--ink);font-weight:500;}
+.grp{display:flex;flex-direction:column;gap:16px;}
+.desc{margin:0;color:var(--dim);line-height:1.65;}
+.warn{margin:0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,211,138,.35);background:rgba(255,211,138,.06);color:var(--caution);line-height:1.6;font-size:10px;}
 
 .field{display:flex;flex-direction:column;gap:8px;}
 .field > .lbl{display:flex;justify-content:space-between;gap:8px;color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;}
@@ -54,7 +58,6 @@ body{font-family:var(--font-body);font-stretch:87.5%;font-size:11px;-webkit-font
 .chip[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:rgba(255,255,255,.07);box-shadow:inset 0 0 16px -8px var(--accent);}
 
 input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer;}
-input[type="range"]:disabled{opacity:.35;cursor:not-allowed;}
 input[type="range"]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p,50%),var(--line) var(--p,50%));}
 input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-8px;border-radius:50%;border:0;background:var(--ink);box-shadow:0 0 0 4px rgba(5,4,10,.45),0 0 14px var(--accent);}
 input[type="range"]::-moz-range-track{height:2px;background:var(--line);}
@@ -92,6 +95,8 @@ input[type="range"]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;b
 .icon{width:40px;height:40px;border-radius:12px;padding:0;cursor:pointer;display:grid;place-items:center;color:var(--ink);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
 .icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
 .icon[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);}
+.breathe-btn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 28px);transform:translateX(-50%);min-width:200px;padding:16px 22px;border-radius:999px;
+  background:var(--glass-strong);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
 
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);max-width:calc(100% - 32px);
   padding:10px 14px;border-radius:14px;background:var(--glass-strong);border:1px solid var(--line);color:var(--ink);font-size:10px;letter-spacing:.04em;line-height:1.5;text-align:center;pointer-events:none;opacity:0;transition:opacity .35s;}
@@ -99,6 +104,9 @@ input[type="range"]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;b
 .mini{gap:12px;}
 .mini h2{font-family:var(--font-display);font-weight:400;font-size:24px;margin:0;}
 .mini p{margin:0;color:var(--dim);line-height:1.65;}
+.holds{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;font-variant-numeric:tabular-nums;}
+.holds li{display:flex;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:10px;}
+.holds li span:first-child{color:var(--dim);}
 .err{position:fixed;inset:0;display:grid;place-items:center;padding:32px;text-align:center;line-height:1.7;color:var(--dim);font-size:12px;}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 @media (prefers-reduced-motion: reduce){ .hud,.toast,.chip,.tog .sw,.tog .sw::after{transition:none;} }
@@ -110,27 +118,77 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <section class="card" id="setup" aria-labelledby="ttl">
   <div>
     <h1 class="brand" id="ttl">cyberdelic/vr</h1>
-    <p class="lead">A guided, breath-paced journey inside a kaleidoscopic dome. Visuals and sound build to a peak, then bring you back down gently. <strong>Best seated, with headphones.</strong></p>
+    <p class="lead">A breath-driven journey inside a kaleidoscopic dome. Visuals and sound respond to every breath. <strong>Best seated, with headphones.</strong></p>
   </div>
 
   <div class="field">
-    <div class="lbl"><span>Session</span><output id="lenOut">12 min</output></div>
-    <div class="chips" role="group" aria-label="Session length" id="lenChips">
-      <button class="chip" type="button" data-len="0" aria-pressed="false">Free</button>
-      <button class="chip" type="button" data-len="6" aria-pressed="false">6 min</button>
-      <button class="chip" type="button" data-len="12" aria-pressed="true">12 min</button>
-      <button class="chip" type="button" data-len="20" aria-pressed="false">20 min</button>
+    <div class="lbl"><span>Mode</span><output id="modeOut">Journey</output></div>
+    <div class="chips" role="group" aria-label="Mode" id="modeChips">
+      <button class="chip" type="button" data-mode="journey" aria-pressed="true">Journey</button>
+      <button class="chip" type="button" data-mode="activation" aria-pressed="false">Activation</button>
+      <button class="chip" type="button" data-mode="free" aria-pressed="false">Free</button>
+    </div>
+  </div>
+
+  <div class="grp" id="grpJourney">
+    <p class="desc">Slow breathing while the dome unfolds, peaks and brings you back down.</p>
+    <div class="field">
+      <div class="lbl"><span>Length</span><output id="lenOut">12 min</output></div>
+      <div class="chips" role="group" aria-label="Journey length" id="lenChips">
+        <button class="chip" type="button" data-len="6" aria-pressed="false">6 min</button>
+        <button class="chip" type="button" data-len="12" aria-pressed="true">12 min</button>
+        <button class="chip" type="button" data-len="20" aria-pressed="false">20 min</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grp" id="grpAct" hidden>
+    <p class="desc">Rounds of deep, quick breaths build the visuals up. Then you hold on empty lungs while everything goes still, ending the hold whenever you need to breathe. One full breath held for 15 seconds makes the dome bloom.</p>
+    <div class="field">
+      <div class="lbl"><span>Rounds</span><output id="roundsOut">3</output></div>
+      <div class="chips" role="group" aria-label="Rounds" id="roundChips">
+        <button class="chip" type="button" data-v="2" aria-pressed="false">2</button>
+        <button class="chip" type="button" data-v="3" aria-pressed="true">3</button>
+        <button class="chip" type="button" data-v="4" aria-pressed="false">4</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl"><span>Breaths per round</span><output id="breathsOut">30</output></div>
+      <div class="chips" role="group" aria-label="Breaths per round" id="breathChips">
+        <button class="chip" type="button" data-v="20" aria-pressed="false">20</button>
+        <button class="chip" type="button" data-v="30" aria-pressed="true">30</button>
+        <button class="chip" type="button" data-v="40" aria-pressed="false">40</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl"><span>Breath speed</span><output id="paceOut">3.2 s per breath</output></div>
+      <div class="chips" role="group" aria-label="Breath speed" id="paceChips">
+        <button class="chip" type="button" data-v="3.2" aria-pressed="true">Steady</button>
+        <button class="chip" type="button" data-v="2.4" aria-pressed="false">Quick</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl"><span>Hold limit</span><output id="capOut">90 s</output></div>
+      <div class="chips" role="group" aria-label="Hold limit" id="capChips">
+        <button class="chip" type="button" data-v="60" aria-pressed="false">60 s</button>
+        <button class="chip" type="button" data-v="90" aria-pressed="true">90 s</button>
+        <button class="chip" type="button" data-v="120" aria-pressed="false">2 min</button>
+      </div>
+    </div>
+    <p class="warn">This breathing can make you lightheaded or tingly. Stay seated or lying down; never do it standing, driving or in water. There's no target for the hold: breathe in as soon as you want to. Skip this mode if you're pregnant or have epilepsy, a heart condition or high blood pressure.</p>
+  </div>
+
+  <div class="grp" id="grpFree" hidden>
+    <p class="desc">No timer. Stay at one intensity for as long as you like. In a headset, push the thumbstick up or down to change it.</p>
+    <div class="field">
+      <label class="lbl" for="inten"><span>Intensity</span><output id="intenOut" for="inten">70%</output></label>
+      <input type="range" id="inten" min="0.1" max="1" step="0.05" value="0.7">
     </div>
   </div>
 
   <div class="field">
-    <label class="lbl" for="bpm"><span>Breath pace</span><output id="bpmOut" for="bpm">5.5 / min</output></label>
+    <label class="lbl" for="bpm"><span id="bpmLbl">Breath pace</span><output id="bpmOut" for="bpm">5.5 / min</output></label>
     <input type="range" id="bpm" min="4" max="8" step="0.5" value="5.5">
-  </div>
-
-  <div class="field">
-    <label class="lbl" for="inten"><span>Intensity · free mode</span><output id="intenOut" for="inten">70%</output></label>
-    <input type="range" id="inten" min="0.1" max="1" step="0.05" value="0.7" disabled>
   </div>
 
   <div class="field">
@@ -179,16 +237,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     </button>
   </div>
 </div>
+<button class="btn primary breathe-btn" type="button" id="hudBreathe" hidden>Breathe in</button>
 
 <section class="card mini" id="done" hidden aria-labelledby="doneTtl">
   <h2 id="doneTtl">complete</h2>
+  <ul class="holds" id="doneHolds" hidden></ul>
   <p>Take a minute before you stand up or pick up your phone. Notice your breath, your hands, the room around you.</p>
   <button class="btn primary" type="button" id="btnDone">Back to start</button>
 </section>
 
 <section class="card mini" id="inxr" hidden aria-labelledby="xrTtl">
   <h2 id="xrTtl">in vr</h2>
-  <p>The session is running in your headset. Press the headset's menu or system button to exit.</p>
+  <p>The session is running in your headset. In Activation mode, pull the trigger (or pinch) to end a hold. Press the headset's menu or system button to exit.</p>
 </section>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -202,6 +262,7 @@ const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function showError(msg) { const e = $('err'); e.textContent = msg; e.hidden = false; $('setup').hidden = true; }
 if (!window.THREE) { showError("The 3D engine didn't load. Check your connection and reload the page."); return; }
 
@@ -215,7 +276,7 @@ const PALETTES = [
 ];
 const palColor = (p, t, hue) => [0, 1, 2].map(i => p.a[i] + p.b[i] * Math.cos(TAU * (p.c[i] * t + p.d[i] + hue)));
 
-/* ---------- session arc ---------- */
+/* ---------- journey arc ---------- */
 const PHASES = [
   { name: 'arrive',   end: 0.12, sub: 'Settle in. Breathe with the light.' },
   { name: 'unfold',   end: 0.38, sub: 'Let the pattern open around you.' },
@@ -233,15 +294,22 @@ function intensityAt(f) {
 const phaseIndex = f => { for (let i = 0; i < PHASES.length; i++) if (f < PHASES[i].end) return i; return PHASES.length - 1; };
 
 /* ---------- settings ---------- */
-const DEFAULTS = { len: 12, bpm: 5.5, intensity: 0.7, sym: 8, palette: 0, sound: true, guide: true, anchor: true };
+const DEFAULTS = { mode: 'journey', len: 12, bpm: 5.5, intensity: 0.7, sym: 8, palette: 0, sound: true, guide: true, anchor: true,
+  rounds: 3, breaths: 30, pace: 3.2, cap: 90 };
 const state = Object.assign({}, DEFAULTS);
 const KEY = 'cyberdelic-vr.v1';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function merge(src) {
   if (!src || typeof src !== 'object') return;
+  if (src.len === 0 && !src.mode) src = Object.assign({}, src, { mode: 'free', len: 12 });
   for (const k of Object.keys(DEFAULTS)) if (k in src && typeof src[k] === typeof DEFAULTS[k]) state[k] = src[k];
-  if (![0, 6, 12, 20].includes(state.len)) state.len = 12;
+  if (!['journey', 'activation', 'free'].includes(state.mode)) state.mode = 'journey';
+  if (![6, 12, 20].includes(state.len)) state.len = 12;
   if (![6, 8, 12, 16].includes(state.sym)) state.sym = 8;
+  if (![2, 3, 4].includes(state.rounds)) state.rounds = 3;
+  if (![20, 30, 40].includes(state.breaths)) state.breaths = 30;
+  if (![2.4, 3.2].includes(state.pace)) state.pace = 3.2;
+  if (![60, 90, 120].includes(state.cap)) state.cap = 90;
   state.bpm = clamp(+state.bpm || 5.5, 4, 8);
   state.intensity = clamp(+state.intensity || 0.7, 0.1, 1);
   state.palette = clamp(state.palette | 0, 0, PALETTES.length - 1);
@@ -269,6 +337,7 @@ stereo.aspect = 0.5; stereo.eyeSep = 0.064;
 
 const U = {
   uTime: { value: 0 }, uI: { value: 0.45 }, uB: { value: 0 }, uHue: { value: 0 }, uSym: { value: 8 },
+  uStill: { value: 0 }, uBloom: { value: 0 }, uEnergy: { value: 0 },
   pA: { value: new THREE.Vector3() }, pB: { value: new THREE.Vector3() }, pC: { value: new THREE.Vector3() }, pD: { value: new THREE.Vector3() },
 };
 const PAL = `uniform vec3 pA; uniform vec3 pB; uniform vec3 pC; uniform vec3 pD; uniform float uHue;
@@ -278,11 +347,12 @@ function applyPalette() {
   U.pA.value.fromArray(p.a); U.pB.value.fromArray(p.b); U.pC.value.fromArray(p.c); U.pD.value.fromArray(p.d);
 }
 
-/* Dome: an azimuthal kaleidoscope centered straight ahead, wrapping all the way around you */
+/* Dome: an azimuthal kaleidoscope centered straight ahead, wrapping all the way around you.
+   uStill (breath hold) widens and dims it toward a quiet void; uBloom (recovery breath) opens and brightens it. */
 const dome = new THREE.Mesh(new THREE.SphereGeometry(60, 64, 32), new THREE.ShaderMaterial({
   uniforms: U, side: THREE.BackSide, depthWrite: false,
   vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-  fragmentShader: `uniform float uTime; uniform float uI; uniform float uB; uniform float uSym;
+  fragmentShader: `uniform float uTime; uniform float uI; uniform float uB; uniform float uSym; uniform float uStill; uniform float uBloom;
 ${PAL}
 varying vec3 vDir;
 vec2 kfold(vec2 p, float n){ float seg = 6.28318530718 / n; float a = atan(p.y, p.x); a = abs(mod(a + seg * 0.5, seg) - seg * 0.5); return vec2(cos(a), sin(a)) * length(p); }
@@ -290,7 +360,7 @@ void main(){
   vec3 d = normalize(vDir);
   float rad = acos(clamp(-d.z, -1.0, 1.0));
   float a = atan(d.y, d.x);
-  float zoom = mix(1.35, 0.95, uI) * (1.0 - 0.05 * uB);
+  float zoom = mix(1.35, 0.95, uI) * (1.0 - 0.05 * uB) * (1.0 + 0.3 * uStill) * (1.0 - 0.18 * uBloom);
   vec2 p = kfold(vec2(cos(a), sin(a)) * rad * zoom, uSym);
   vec2 p0 = p;
   float t = uTime;
@@ -306,8 +376,11 @@ void main(){
   col = 1.0 - exp(-col * 0.75);
   vec3 neb = pal(rad * 0.35 + t * 0.01) * (0.06 + 0.04 * uB) * (1.0 - smoothstep(0.4, 3.0, rad));
   col = neb + col * smoothstep(0.03, 0.7, uI) * (0.6 + 0.4 * uB);
+  col *= 1.0 - 0.6 * uStill;
+  col += pal(t * 0.02 + 0.6) * 0.22 * uStill * exp(-rad * 2.2);
+  col = col * (1.0 + 0.35 * uBloom) + pal(rad * 0.2 + t * 0.05) * 0.08 * uBloom;
   col *= mix(1.0, 0.4, smoothstep(1.7, 3.0, rad));
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(min(col, vec3(1.0)), 1.0);
 }`
 }));
 dome.renderOrder = -10;
@@ -344,15 +417,13 @@ const shells = shellDefs.map(d => {
   return { g, m, e, d };
 });
 
-/* Orbiters: small crystals circling you slowly at arm's-length-plus */
+/* Orbiters: small crystals circling you slowly */
 const orbitGroup = new THREE.Group();
 scene.add(orbitGroup);
 const orbiters = [];
 for (let i = 0; i < 8; i++) {
-  const geo = new THREE.OctahedronGeometry(0.16, 0);
-  const m = new THREE.Mesh(geo, shellMat(i / 8));
-  const a = (i / 8) * TAU;
-  m.userData = { a, h: Math.sin(i * 1.7) * 0.6, r: 3.2 + (i % 2) * 0.6 };
+  const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), shellMat(i / 8));
+  m.userData = { a: (i / 8) * TAU, h: Math.sin(i * 1.7) * 0.6, r: 3.2 + (i % 2) * 0.6 };
   orbitGroup.add(m); orbiters.push(m);
 }
 
@@ -370,10 +441,10 @@ pgeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
 const PU = Object.assign({}, U, { uScale: { value: 500 } });
 const particles = new THREE.Points(pgeo, new THREE.ShaderMaterial({
   uniforms: PU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  vertexShader: `attribute float aSeed; uniform float uTime; uniform float uI; uniform float uB; uniform float uScale;
+  vertexShader: `attribute float aSeed; uniform float uTime; uniform float uI; uniform float uB; uniform float uBloom; uniform float uScale;
 varying float vA; varying float vSeed;
 void main(){
-  float r = length(position.xz);
+  float r = length(position.xz) * (1.0 + 0.12 * uBloom);
   float ang = atan(position.z, position.x) + uTime * (0.01 + 0.02 * aSeed);
   float y = mod(position.y + uTime * (0.05 + 0.1 * aSeed) + 12.0, 24.0) - 12.0;
   vec3 q = vec3(cos(ang) * r, y, sin(ang) * r) * (1.0 + 0.03 * uB);
@@ -390,6 +461,41 @@ void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.
 }));
 particles.frustumCulled = false;
 scene.add(particles);
+
+/* Energy column: a double helix of light rising from the floor around you. It speeds up and brightens
+   with each activation breath, hangs nearly frozen during the hold, and flares on the recovery breath. */
+const EN = 900;
+const epar = new Float32Array(EN * 3);
+for (let i = 0; i < EN; i++) {
+  epar[i * 3] = (i % 2) * Math.PI + (Math.random() - 0.5) * 0.5;
+  epar[i * 3 + 1] = Math.random();
+  epar[i * 3 + 2] = 0.95 + Math.random() * 0.55;
+}
+const egeo = new THREE.BufferGeometry();
+egeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(EN * 3), 3));
+egeo.setAttribute('aP', new THREE.BufferAttribute(epar, 3));
+const column = new THREE.Points(egeo, new THREE.ShaderMaterial({
+  uniforms: PU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `attribute vec3 aP; uniform float uTime; uniform float uEnergy; uniform float uBloom; uniform float uScale;
+varying float vA; varying float vH;
+void main(){
+  float ph = fract(aP.y + uTime * (0.04 + 0.16 * uEnergy));
+  float y = -1.2 + ph * 4.6;
+  float ang = aP.x + y * 1.4 + uTime * 0.22;
+  float r = aP.z * (1.0 - 0.3 * ph) * (1.0 + 0.25 * uBloom);
+  vec4 mv = modelViewMatrix * vec4(cos(ang) * r, y, sin(ang) * r, 1.0);
+  gl_PointSize = clamp(uScale * 0.032 / max(-mv.z, 0.1), 1.0, 28.0);
+  vA = clamp(uEnergy + 0.6 * uBloom, 0.0, 1.0) * smoothstep(0.0, 0.08, ph) * (1.0 - smoothstep(0.7, 1.0, ph));
+  vH = ph;
+  gl_Position = projectionMatrix * mv;
+}`,
+  fragmentShader: `uniform float uTime;
+${PAL}
+varying float vA; varying float vH;
+void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(pal(vH * 0.8 + uTime * 0.03), a * a * vA * 0.85); }`
+}));
+column.frustumCulled = false;
+scene.add(column);
 
 /* Floor ring: a fixed reference under you for comfort */
 const AU = Object.assign({}, U, { uOp: { value: 1 } });
@@ -441,27 +547,30 @@ function textSprite(w, h, size) {
     g.clearRect(0, 0, w, h);
     g.font = `400 ${size}px "Major Mono Display", ui-monospace, monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.shadowColor = 'rgba(0,0,0,.85)'; g.shadowBlur = 14;
+    g.shadowColor = 'rgba(0,0,0,.95)'; g.shadowBlur = 18;
+    g.lineWidth = Math.max(4, size * 0.12); g.strokeStyle = 'rgba(5,4,10,.75)'; g.lineJoin = 'round';
+    g.font = `400 ${size}px "Major Mono Display", ui-monospace, monospace`; g.strokeText(text, w / 2, h / 2);
     g.fillStyle = 'rgba(242,238,252,.96)';
     g.fillText(text, w / 2, h / 2);
     tex.needsUpdate = true;
   };
+  s.userData.text = () => current;
   return s;
 }
-const breathLabel = textSprite(512, 128, 52);
-breathLabel.scale.set(0.5, 0.125, 1);
-breathLabel.position.set(0, -0.36, -1.5);
+const breathLabel = textSprite(768, 128, 52);
+breathLabel.scale.set(0.75, 0.125, 1);
+breathLabel.position.set(0, -0.44, -1.5);
 const phaseLabel = textSprite(1024, 192, 110);
 phaseLabel.scale.set(1.6, 0.3, 1);
 phaseLabel.position.set(0, 0.78, -2.4);
-const subLabel = textSprite(1536, 128, 40);
-subLabel.scale.set(1.8, 0.15, 1);
+const subLabel = textSprite(1792, 128, 40);
+subLabel.scale.set(2.1, 0.15, 1);
 subLabel.position.set(0, 0.55, -2.4);
 scene.add(breathLabel, phaseLabel, subLabel);
 
-/* ---------- sound: drone that swells with each breath and opens up at the peak ---------- */
+/* ---------- sound ---------- */
 const Sound = (() => {
-  let ctx = null, master, filter, shimmer, on = 0;
+  let ctx = null, master, filter, shimmer, bus, noiseGain, noiseBP, on = 0;
   function build() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) throw new Error('No Web Audio');
@@ -473,7 +582,8 @@ const Sound = (() => {
     const conv = ctx.createConvolver(); conv.buffer = ir;
     const wet = ctx.createGain(); wet.gain.value = 0.6;
     const dry = ctx.createGain(); dry.gain.value = 0.55;
-    filter.connect(dry); filter.connect(conv); conv.connect(wet); dry.connect(master); wet.connect(master); master.connect(ctx.destination);
+    bus = ctx.createGain(); bus.gain.value = 1;
+    filter.connect(bus); bus.connect(dry); bus.connect(conv); conv.connect(wet); dry.connect(master); wet.connect(master); master.connect(ctx.destination);
     const root = 55;
     const voice = (ratio, type, det, pan, gain, dest) => {
       const o = ctx.createOscillator(); o.type = type; o.frequency.value = root * ratio; o.detune.value = det;
@@ -491,19 +601,152 @@ const Sound = (() => {
     voice(3, 'sine', 0, -0.5, 0.05, shimmer);
     voice(4, 'sine', 4, 0.5, 0.045, shimmer);
     voice(6, 'sine', -4, 0, 0.03, shimmer);
+    // breath: looping filtered noise that rises and falls with each activation breath
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true;
+    noiseBP = ctx.createBiquadFilter(); noiseBP.type = 'bandpass'; noiseBP.frequency.value = 500; noiseBP.Q.value = 0.9;
+    noiseGain = ctx.createGain(); noiseGain.gain.value = 0;
+    ns.connect(noiseBP); noiseBP.connect(noiseGain); noiseGain.connect(bus); ns.start();
   }
   return {
     start() { if (!ctx) build(); if (ctx.resume) ctx.resume().catch(() => {}); on = 1; },
     stop() { on = 0; if (ctx) master.gain.setTargetAtTime(0, ctx.currentTime, 0.25); },
-    update(I, b) {
+    update(I, b, o) {
       if (!ctx) return;
       const t = ctx.currentTime;
-      filter.frequency.setTargetAtTime(220 + 700 * b + 1400 * I, t, 0.25);
-      master.gain.setTargetAtTime(on * (0.1 + 0.14 * I), t, 0.5);
-      shimmer.gain.setTargetAtTime(I * I * 0.9, t, 0.8);
+      const still = o.still || 0, bloom = o.bloom || 0;
+      filter.frequency.setTargetAtTime((220 + 700 * b + 1400 * I) * (1 - 0.7 * still) + 1200 * bloom, t, 0.25);
+      master.gain.setTargetAtTime(on * (0.1 + 0.14 * I) * (1 - 0.35 * still), t, 0.5);
+      shimmer.gain.setTargetAtTime(Math.max(I * I * 0.9 * (1 - still), bloom * 1.2), t, 0.6);
+      noiseGain.gain.setTargetAtTime((o.whoosh || 0) * (0.04 + 0.2 * b), t, 0.06);
+      noiseBP.frequency.setTargetAtTime(320 + 1100 * b, t, 0.08);
+    },
+    bell(f) {
+      if (!ctx || !on) return;
+      const t = ctx.currentTime;
+      [[1, 0.16], [2.76, 0.06], [5.4, 0.025]].forEach(([r, g]) => {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * r;
+        const e = ctx.createGain(); e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(g, t + 0.02); e.gain.exponentialRampToValueAtTime(0.0001, t + 4.5);
+        o.connect(e); e.connect(bus); o.start(t); o.stop(t + 4.6);
+      });
     },
   };
 })();
+
+/* ---------- activation rounds ---------- */
+let act = null;
+function newActivation() { return { phase: 'settle', t: 0, round: 0, k: 0, cyc: 0, holds: [], capRang: false, energyHold: 0 }; }
+function actGo(p) {
+  act.phase = p; act.t = 0; act.capRang = false;
+  const r = act.round;
+  const T = {
+    settle: ['settle', 'Slow, easy breaths. Get comfortable.'],
+    power: ['round ' + (r + 1), 'Deep breath in, let it fall out. Keep the rhythm.'],
+    exhale: ['let it out', 'Exhale fully, relax, and hold on empty.'],
+    hold: ['hold', renderer.xr.isPresenting ? 'Pull the trigger when you need to breathe in.' : 'Tap when you need to breathe in.'],
+    recover: ['recover', 'Breathe all the way in and hold.'],
+    release: ['release', 'Let it go.'],
+    between: ['breathe', 'Breathe normally for a moment.'],
+    integrate: ['integrate', 'Breathe naturally. Let it settle.'],
+    rest: ['rest', 'Rest here. Take your time.'],
+    complete: ['complete', 'Holds  ' + act.holds.map(mmss).join('  ·  ')],
+  }[p];
+  announce(T[0], T[1]);
+  if (p === 'hold') Sound.bell(220);
+  if (p === 'recover') Sound.bell(330);
+  if (p === 'integrate') Sound.bell(165);
+  if (p === 'complete') onComplete();
+  $('hudBreathe').hidden = !(p === 'hold' && mode !== 'xr');
+}
+function endHold() {
+  if (!act || act.phase !== 'hold') return;
+  act.holds.push(act.t);
+  actGo('recover');
+}
+function resonance(dt) {
+  bphase = (bphase + dt / (60 / state.bpm)) % 1;
+  return { b: 0.5 - 0.5 * Math.cos(TAU * bphase), inhale: bphase < 0.5 };
+}
+function stepActivation(dt) {
+  const A = act; A.t += dt;
+  const R = state.rounds, Nb = state.breaths, P = state.pace, r = A.round;
+  const base = 0.3 + 0.12 * r, peak = Math.min(1, 0.8 + 0.07 * r);
+  const o = { I: 0.1, b: 0, energy: 0, still: 0, bloom: 0, whoosh: 0, cue: '', clock: '' };
+  switch (A.phase) {
+    case 'settle': {
+      const rb = resonance(dt); o.b = rb.b; o.I = 0.12; o.cue = rb.inhale ? 'breathe in' : 'breathe out';
+      o.clock = mmss(Math.max(0, 60 - A.t));
+      if (A.t >= 60) { A.k = 0; A.cyc = 0; actGo('power'); }
+      break;
+    }
+    case 'power': {
+      A.cyc += dt / P;
+      if (A.cyc >= 1) { A.cyc -= 1; A.k++; }
+      if (A.k >= Nb) { A.energyHold = 0.6 + 0.2 * r; actGo('exhale'); o.I = peak; o.energy = A.energyHold; break; }
+      const c = A.cyc, inh = c < 0.55;
+      o.b = inh ? 0.5 - 0.5 * Math.cos(Math.PI * c / 0.55) : 0.5 + 0.5 * Math.cos(Math.PI * (c - 0.55) / 0.45);
+      const kf = (A.k + c) / Nb;
+      o.I = base + (peak - base) * kf;
+      o.energy = kf * (0.6 + 0.2 * r);
+      o.whoosh = 1;
+      o.cue = (inh ? 'in  ' : 'out  ') + (A.k + 1) + ' / ' + Nb;
+      o.clock = (A.k + 1) + '/' + Nb;
+      break;
+    }
+    case 'exhale': {
+      o.I = peak; o.energy = A.energyHold; o.still = ss(0, 3, A.t) * 0.6; o.cue = 'let it all out';
+      if (A.t >= 3) actGo('hold');
+      break;
+    }
+    case 'hold': {
+      o.I = peak * 0.9; o.energy = A.energyHold; o.still = 1;
+      const cap = state.cap;
+      if (A.t >= cap && !A.capRang) { A.capRang = true; Sound.bell(330); }
+      o.cue = A.t >= cap ? 'breathe in now' : 'hold  ' + mmss(A.t);
+      o.clock = mmss(A.t);
+      if (A.t >= cap + 5) endHold();
+      break;
+    }
+    case 'recover': {
+      o.b = A.t < 2.5 ? 0.5 - 0.5 * Math.cos(Math.PI * A.t / 2.5) : 1;
+      o.bloom = ss(0, 2.5, A.t); o.I = 1; o.energy = 1; o.whoosh = A.t < 2.5 ? 1 : 0;
+      o.cue = A.t < 2.5 ? 'all the way in' : 'hold  ' + Math.ceil(15 - A.t);
+      o.clock = String(Math.ceil(15 - A.t));
+      if (A.t >= 15) actGo('release');
+      break;
+    }
+    case 'release': {
+      o.b = 0.5 + 0.5 * Math.cos(Math.PI * Math.min(1, A.t / 3));
+      o.bloom = 1 - ss(0, 4, A.t); o.I = 0.9; o.energy = 1 - 0.5 * ss(0, 4, A.t); o.cue = 'let go';
+      if (A.t >= 4) { A.round++; actGo(A.round >= R ? 'integrate' : 'between'); }
+      break;
+    }
+    case 'between': {
+      const rb = resonance(dt); o.b = rb.b; o.I = 0.6; o.energy = 0.4; o.cue = 'round ' + (A.round + 1) + ' in ' + Math.ceil(8 - A.t);
+      o.clock = String(Math.ceil(8 - A.t));
+      if (A.t >= 8) { A.k = 0; A.cyc = 0; actGo('power'); }
+      break;
+    }
+    case 'integrate': {
+      const rb = resonance(dt); o.b = rb.b; o.I = 0.85 - 0.55 * ss(0, 180, A.t); o.energy = 0.45 * (1 - ss(0, 120, A.t));
+      o.cue = rb.inhale ? 'breathe in' : 'breathe out'; o.clock = mmss(Math.max(0, 180 - A.t));
+      if (A.t >= 180) actGo('rest');
+      break;
+    }
+    case 'rest': {
+      const rb = resonance(dt); o.b = rb.b; o.I = 0.1; o.cue = ''; o.clock = mmss(Math.max(0, 60 - A.t));
+      if (A.t >= 60) actGo('complete');
+      break;
+    }
+    default: { const rb = resonance(dt); o.b = rb.b; o.I = 0.08; o.cue = ''; o.clock = ''; }
+  }
+  return o;
+}
+function estimateActivation() {
+  const perRound = state.breaths * state.pace + 3 + 60 + 15 + 4;
+  return Math.round((60 + state.rounds * perRound + (state.rounds - 1) * 8 + 240) / 60);
+}
 
 /* ---------- look controls (flat + cardboard) ---------- */
 let yaw = 0, pitch = 0, orient = null, alpha0 = null;
@@ -532,7 +775,9 @@ function applyLook() {
     drag.x = e.clientX; drag.y = e.clientY;
   });
   const up = e => {
-    if (drag && performance.now() - drag.t < 300 && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8 && mode !== 'idle') showHud(true);
+    if (drag && performance.now() - drag.t < 300 && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8 && mode !== 'idle') {
+      if (act && act.phase === 'hold') endHold(); else showHud(true);
+    }
     drag = null;
   };
   canvas.addEventListener('pointerup', up);
@@ -541,9 +786,14 @@ function applyLook() {
 
 /* ---------- session state ---------- */
 let mode = 'idle'; // idle | flat | cardboard | xr
-let sessionT = 0, I = 0.45, bphase = 0, shaderT = 0, hue = 0, phaseIdx = -1, labelT = 99, inhalePrev = null, complete = false;
-let audioT = 0, hudT = 0, accentT = 0, lastAccent = '', hudHideT = 0;
+let sessionT = 0, I = 0.45, bphase = 0, shaderT = 0, hue = 0, phaseIdx = -1, labelT = 99, complete = false;
+let still = 0, bloom = 0, energy = 0;
+let hudT = 0, accentT = 0, lastAccent = '', hudHideT = 0;
 
+function announce(name, sub) {
+  phaseLabel.userData.set(name); subLabel.userData.set(sub); labelT = 0;
+  $('hudPhase').textContent = name; $('hudSub').textContent = sub;
+}
 function setSoundIcon() {
   const b = $('hudSound');
   b.setAttribute('aria-pressed', String(state.sound));
@@ -557,12 +807,26 @@ function showHud(temp) {
   const h = $('hud'); h.classList.remove('faded');
   hudHideT = (mode === 'cardboard' || temp) ? 3.5 : 0;
 }
+function onComplete() {
+  complete = true;
+  $('hudBreathe').hidden = true;
+  const ul = $('doneHolds');
+  ul.innerHTML = '';
+  if (act && act.holds.length) {
+    act.holds.forEach((h, i) => { const li = document.createElement('li'); li.innerHTML = `<span>Round ${i + 1} hold</span><span>${mmss(h)}</span>`; ul.appendChild(li); });
+    ul.hidden = false;
+  } else ul.hidden = true;
+  if (mode !== 'xr') { $('hud').hidden = true; $('done').hidden = false; }
+}
 
 function beginSession(m) {
-  mode = m; sessionT = 0; phaseIdx = -1; complete = false; inhalePrev = null; bphase = 0;
-  $('setup').hidden = true; $('done').hidden = true;
+  mode = m; sessionT = 0; phaseIdx = -1; complete = false; bphase = 0;
+  act = state.mode === 'activation' ? newActivation() : null;
+  $('setup').hidden = true; $('done').hidden = true; $('hudBreathe').hidden = true;
   if (m === 'xr') { $('inxr').hidden = false; $('hud').hidden = true; }
   else { $('hud').hidden = false; showHud(m === 'cardboard'); }
+  if (act) actGo('settle');
+  else if (state.mode === 'free') announce('free', 'Stay as long as you like.');
   if (m === 'cardboard' && innerHeight > innerWidth) toast('Turn your phone sideways and place it in your viewer.', 5000);
 }
 function endSession() {
@@ -571,9 +835,9 @@ function endSession() {
     orient = null; alpha0 = null;
     try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
   }
-  mode = 'idle'; complete = false;
+  mode = 'idle'; complete = false; act = null;
   Sound.stop();
-  $('hud').hidden = true; $('inxr').hidden = true; $('done').hidden = true; $('setup').hidden = false;
+  $('hud').hidden = true; $('inxr').hidden = true; $('done').hidden = true; $('hudBreathe').hidden = true; $('setup').hidden = false;
   phaseLabel.material.opacity = subLabel.material.opacity = breathLabel.material.opacity = 0;
   onResize();
 }
@@ -583,11 +847,13 @@ async function enterXR() {
   if (!navigator.xr) return;
   startAudioIfOn();
   try {
-    const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'hand-tracking'] });
     renderer.xr.setReferenceSpaceType('local');
     await renderer.xr.setSession(session);
-    beginSession('xr');
     session.addEventListener('end', () => endSession());
+    session.addEventListener('selectstart', () => endHold());
+    session.addEventListener('squeezestart', () => endHold());
+    beginSession('xr');
   } catch (e) {
     Sound.stop();
     const why = e && e.name === 'SecurityError' ? 'this page is embedded somewhere that blocks VR' : e && e.name === 'NotSupportedError' ? 'this browser has no VR support' : (e && e.name) || 'unknown error';
@@ -613,103 +879,108 @@ function enterFlat() { startAudioIfOn(); beginSession('flat'); }
 const clock = new THREE.Clock();
 const tmpV = new THREE.Vector2();
 function loop() {
-  const dt = Math.min(clock.getDelta(), 0.1);
+  const dt = Math.min(clock.getDelta(), 0.1) * (window.__cvrSpeed || 1);
   const timeScale = reduceMotion ? 0.5 : 1;
 
-  let target, f = 0;
-  if (mode === 'idle') target = 0.45;
-  else if (state.len === 0) target = state.intensity;
-  else { sessionT += dt; f = sessionT / (state.len * 60); target = intensityAt(Math.min(f, 1)); }
-  I += (target - I) * (1 - Math.exp(-dt * 0.8));
+  let target, b, inhale = true, f = 0, o = null;
+  if (mode !== 'idle' && act) {
+    o = stepActivation(dt); target = o.I; b = o.b;
+  } else {
+    const rb = resonance(dt); b = rb.b; inhale = rb.inhale;
+    if (mode === 'idle') target = 0.45;
+    else if (state.mode === 'free') target = state.intensity;
+    else { sessionT += dt; f = sessionT / (state.len * 60); target = intensityAt(Math.min(f, 1)); }
+  }
+  I += (target - I) * (1 - Math.exp(-dt * (act ? 1.6 : 0.8)));
+  still += ((o ? o.still : 0) - still) * (1 - Math.exp(-dt * 1.4));
+  bloom += ((o ? o.bloom : 0) - bloom) * (1 - Math.exp(-dt * 1.8));
+  const eTarget = o ? o.energy : (mode === 'idle' ? 0 : ss(0.75, 1, I) * 0.35);
+  energy += (eTarget - energy) * (1 - Math.exp(-dt * 2));
 
   // XR thumbstick nudges intensity in free mode
-  if (renderer.xr.isPresenting && state.len === 0) {
+  if (renderer.xr.isPresenting && state.mode === 'free') {
     const s = renderer.xr.getSession();
     if (s) for (const src of s.inputSources) { const gp = src.gamepad; if (gp && gp.axes && gp.axes.length >= 4 && Math.abs(gp.axes[3]) > 0.2) state.intensity = clamp(state.intensity - gp.axes[3] * dt * 0.25, 0.1, 1); }
   }
 
-  bphase = (bphase + dt / (60 / state.bpm)) % 1;
-  const b = 0.5 - 0.5 * Math.cos(TAU * bphase);
-  const inhale = bphase < 0.5;
-  shaderT += dt * (0.35 + 0.65 * I) * timeScale;
-  hue += dt * 0.004 * (0.3 + I) * timeScale;
+  shaderT += dt * (0.35 + 0.65 * I) * timeScale * (1 - 0.88 * still) * (1 + 0.6 * bloom);
+  hue += dt * 0.004 * (0.3 + I) * timeScale * (1 - 0.8 * still);
 
   U.uTime.value = shaderT; U.uI.value = I; U.uB.value = b; U.uHue.value = hue; U.uSym.value = state.sym;
+  U.uStill.value = still; U.uBloom.value = bloom; U.uEnergy.value = energy;
 
   // mandala + shells
   const showGeo = ss(0.12, 0.6, I);
-  mandala.scale.setScalar(1 + 0.12 * b);
+  const spinK = timeScale * (1 - 0.85 * still) * (1 + 1.5 * bloom);
+  mandala.scale.setScalar((1 + 0.12 * b) * (1 + 0.2 * bloom));
   const pc = palColor(PALETTES[state.palette], 0.35, hue);
   shells.forEach((s, i) => {
-    s.g.rotation.x += dt * s.d.spin[0] * timeScale;
-    s.g.rotation.y += dt * s.d.spin[1] * timeScale;
-    const op = showGeo * (i === 3 ? 0.28 : 0.55);
+    s.g.rotation.x += dt * s.d.spin[0] * spinK;
+    s.g.rotation.y += dt * s.d.spin[1] * spinK;
+    const op = showGeo * (i === 3 ? 0.28 : 0.55) * (1 - 0.4 * still);
     s.m.material.uniforms.uOpacity.value = op;
     s.e.material.opacity = op * 0.35;
     s.e.material.color.setRGB(clamp(pc[0], 0, 1), clamp(pc[1], 0, 1), clamp(pc[2], 0, 1));
   });
-  orbiters.forEach(o => {
-    const u = o.userData; u.a += dt * 0.025 * timeScale;
-    o.position.set(Math.cos(u.a) * u.r, u.h + 0.1 * Math.sin(shaderT * 0.3 + u.a * 3), Math.sin(u.a) * u.r);
-    o.rotation.x += dt * 0.2; o.rotation.y += dt * 0.15;
-    o.scale.setScalar(1 + 0.25 * b);
-    o.material.uniforms.uOpacity.value = ss(0.25, 0.7, I) * 0.9;
+  orbiters.forEach(m => {
+    const u = m.userData; u.a += dt * 0.025 * spinK;
+    m.position.set(Math.cos(u.a) * u.r, u.h + 0.1 * Math.sin(shaderT * 0.3 + u.a * 3), Math.sin(u.a) * u.r);
+    m.rotation.x += dt * 0.2 * spinK; m.rotation.y += dt * 0.15 * spinK;
+    m.scale.setScalar(1 + 0.25 * b);
+    m.material.uniforms.uOpacity.value = ss(0.25, 0.7, I) * 0.9;
   });
   PU.uScale.value = renderer.xr.isPresenting ? 700 : renderer.getDrawingBufferSize(tmpV).y / 1.53;
+  column.visible = energy > 0.01 || bloom > 0.01;
   AU.uOp.value += ((state.anchor ? 1 : 0) - AU.uOp.value) * (1 - Math.exp(-dt * 3));
   anchor.visible = AU.uOp.value > 0.01;
 
   // breath orb
-  const peak = state.len !== 0 && f > 0.38 && f < 0.72;
-  const orbVis = (mode !== 'idle' && state.guide) ? (peak ? 0.45 : 1) : 0;
+  const peak = state.mode === 'journey' && f > 0.38 && f < 0.72;
+  const orbVis = (mode !== 'idle' && (state.guide || act)) ? (peak ? 0.45 : 1) : 0;
   orb.userData.v = (orb.userData.v || 0) + (orbVis - (orb.userData.v || 0)) * (1 - Math.exp(-dt * 2));
   const ov = orb.userData.v;
   orb.visible = ov > 0.01;
-  orbCore.scale.setScalar(0.75 + 0.5 * b);
+  orbCore.scale.setScalar(0.75 + 0.5 * b + 0.25 * bloom);
   orbCore.material.opacity = ov;
   const oc = palColor(PALETTES[state.palette], 0.15, hue);
   orbGlow.material.color.setRGB(0.5 + 0.5 * clamp(oc[0], 0, 1), 0.5 + 0.5 * clamp(oc[1], 0, 1), 0.5 + 0.5 * clamp(oc[2], 0, 1));
   orbGlow.material.opacity = ov * (0.55 + 0.45 * b);
-  orbGlow.scale.setScalar(0.4 + 0.3 * b);
+  orbGlow.scale.setScalar(0.4 + 0.3 * b + 0.2 * bloom);
   orbRing.scale.setScalar(1 + 0.6 * b);
   orbRing.material.opacity = ov * 0.55 * (1 - 0.4 * b);
-  if (inhale !== inhalePrev) { breathLabel.userData.set(inhale ? 'breathe in' : 'breathe out'); inhalePrev = inhale; }
-  breathLabel.material.opacity = ov * 0.85 * (0.35 + 0.65 * Math.sin(Math.PI * ((bphase * 2) % 1)));
+  if (o) { breathLabel.userData.set(o.cue); breathLabel.material.opacity = o.cue ? ov * 0.9 : 0; }
+  else {
+    breathLabel.userData.set(inhale ? 'breathe in' : 'breathe out');
+    breathLabel.material.opacity = ov * 0.85 * (0.35 + 0.65 * Math.sin(Math.PI * ((bphase * 2) % 1)));
+  }
 
-  // phases
+  // journey + free phases
+  if (mode !== 'idle' && !act && state.mode === 'journey') {
+    if (f >= 1 && !complete) { announce('complete', 'Take your time coming back.'); onComplete(); }
+    const pi = phaseIndex(Math.min(f, 0.9999));
+    if (pi !== phaseIdx && !complete) { phaseIdx = pi; announce(PHASES[pi].name, PHASES[pi].sub); }
+  }
   if (mode !== 'idle') {
-    let pi, name, sub;
-    if (state.len === 0) { pi = 0; name = 'free'; sub = 'Stay as long as you like.'; }
-    else { pi = phaseIdx === -2 ? -2 : phaseIndex(Math.min(f, 0.9999)); name = PHASES[Math.max(pi, 0)].name; sub = PHASES[Math.max(pi, 0)].sub; }
-    if (state.len !== 0 && f >= 1 && !complete) {
-      complete = true; pi = -2; name = 'complete'; sub = 'Take your time coming back.';
-      phaseLabel.userData.set(name); subLabel.userData.set(sub); labelT = 0;
-      if (mode !== 'xr') { $('hud').hidden = true; $('done').hidden = false; }
-    }
-    if (pi !== phaseIdx && !complete) {
-      phaseIdx = pi; phaseLabel.userData.set(name); subLabel.userData.set(sub); labelT = 0;
-      $('hudPhase').textContent = name; $('hudSub').textContent = sub;
-    }
-    if (complete) phaseIdx = -2;
     labelT += dt;
-    const lo = labelT < 1.5 ? labelT / 1.5 : labelT < 6 ? 1 : Math.max(0, 1 - (labelT - 6) / 1.5);
+    const persist = act && (act.phase === 'hold' || act.phase === 'complete');
+    const lo = persist ? Math.min(1, labelT / 1.5) : labelT < 1.5 ? labelT / 1.5 : labelT < 6 ? 1 : Math.max(0, 1 - (labelT - 6) / 1.5);
     phaseLabel.material.opacity = lo; subLabel.material.opacity = lo * 0.8;
-
     hudT += dt;
-    if (hudT > 0.25) {
+    if (hudT > 0.2) {
       hudT = 0;
-      if (state.len === 0) $('hudTime').textContent = Math.round(state.intensity * 100) + '%';
-      else { const rem = Math.max(0, state.len * 60 - sessionT); $('hudTime').textContent = String(Math.floor(rem / 60)).padStart(2, '0') + ':' + String(Math.floor(rem % 60)).padStart(2, '0'); }
+      if (o) $('hudTime').textContent = o.clock;
+      else if (state.mode === 'free') $('hudTime').textContent = Math.round(state.intensity * 100) + '%';
+      else $('hudTime').textContent = mmss(Math.max(0, state.len * 60 - sessionT));
     }
     if (hudHideT > 0) { hudHideT -= dt; if (hudHideT <= 0) $('hud').classList.add('faded'); }
   }
 
   // audio + accent
-  audioT += dt; if (audioT > 0.1) { audioT = 0; Sound.update(I, b); }
+  Sound.update(I, b, { still, bloom, whoosh: o ? o.whoosh : 0 });
   accentT += dt;
   if (accentT > 0.3) {
     accentT = 0;
-    let c = palColor(PALETTES[state.palette], 0.15, hue).map(v => Math.max(0, v));
+    const c = palColor(PALETTES[state.palette], 0.15, hue).map(v => Math.max(0, v));
     const m = Math.max(c[0], c[1], c[2], 0.001);
     const q = c.map(v => Math.min(255, Math.round(((v / m) * 0.82 + 0.18) * 255 / 6) * 6));
     const s = `rgb(${q.join(',')})`;
@@ -747,14 +1018,22 @@ function syncRange(id, v, text) {
   el.style.setProperty('--p', ((v - parseFloat(el.min)) / (parseFloat(el.max) - parseFloat(el.min))) * 100 + '%');
   $(id + 'Out').textContent = text;
 }
+function pressGroup(id, attr, val) { document.querySelectorAll('#' + id + ' .chip').forEach(c => c.setAttribute('aria-pressed', String(+c.dataset[attr] === val || c.dataset[attr] === val))); }
 function syncAll() {
-  document.querySelectorAll('#lenChips .chip').forEach(c => c.setAttribute('aria-pressed', String(+c.dataset.len === state.len)));
-  $('lenOut').textContent = state.len === 0 ? 'Free · no timer' : state.len + ' min';
-  document.querySelectorAll('#symChips .chip').forEach(c => c.setAttribute('aria-pressed', String(+c.dataset.sym === state.sym)));
-  $('symOut').textContent = state.sym + '-fold';
+  pressGroup('modeChips', 'mode', state.mode);
+  $('grpJourney').hidden = state.mode !== 'journey';
+  $('grpAct').hidden = state.mode !== 'activation';
+  $('grpFree').hidden = state.mode !== 'free';
+  $('modeOut').textContent = state.mode === 'journey' ? 'Journey · ' + state.len + ' min' : state.mode === 'activation' ? 'Activation · about ' + estimateActivation() + ' min' : 'Free · no timer';
+  pressGroup('lenChips', 'len', state.len); $('lenOut').textContent = state.len + ' min';
+  pressGroup('roundChips', 'v', state.rounds); $('roundsOut').textContent = String(state.rounds);
+  pressGroup('breathChips', 'v', state.breaths); $('breathsOut').textContent = String(state.breaths);
+  pressGroup('paceChips', 'v', state.pace); $('paceOut').textContent = state.pace + ' s per breath';
+  pressGroup('capChips', 'v', state.cap); $('capOut').textContent = state.cap === 120 ? '2 min' : state.cap + ' s';
+  pressGroup('symChips', 'sym', state.sym); $('symOut').textContent = state.sym + '-fold';
+  $('bpmLbl').textContent = state.mode === 'activation' ? 'Calm breath pace · settle and integrate' : 'Breath pace';
   syncRange('bpm', state.bpm, state.bpm.toFixed(1) + ' / min');
   syncRange('inten', state.intensity, Math.round(state.intensity * 100) + '%');
-  $('inten').disabled = state.len !== 0;
   document.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.pal === state.palette)));
   $('palOut').textContent = PALETTES[state.palette].name;
   syncToggles();
@@ -766,9 +1045,17 @@ function syncToggles() {
   $('togAnchor').setAttribute('aria-pressed', String(state.anchor));
   setSoundIcon();
 }
+function bindChips(id, attr, key, parse) {
+  document.querySelectorAll('#' + id + ' .chip').forEach(c => c.addEventListener('click', () => { state[key] = parse(c.dataset[attr]); syncAll(); saveSoon(); }));
+}
 function initUI() {
-  document.querySelectorAll('#lenChips .chip').forEach(c => c.addEventListener('click', () => { state.len = +c.dataset.len; syncAll(); saveSoon(); }));
-  document.querySelectorAll('#symChips .chip').forEach(c => c.addEventListener('click', () => { state.sym = +c.dataset.sym; syncAll(); saveSoon(); }));
+  bindChips('modeChips', 'mode', 'mode', v => v);
+  bindChips('lenChips', 'len', 'len', Number);
+  bindChips('roundChips', 'v', 'rounds', Number);
+  bindChips('breathChips', 'v', 'breaths', Number);
+  bindChips('paceChips', 'v', 'pace', Number);
+  bindChips('capChips', 'v', 'cap', Number);
+  bindChips('symChips', 'sym', 'sym', Number);
   $('bpm').addEventListener('input', () => { state.bpm = parseFloat($('bpm').value); syncAll(); saveSoon(); });
   $('inten').addEventListener('input', () => { state.intensity = parseFloat($('inten').value); syncAll(); saveSoon(); });
   const pw = $('palettes');
@@ -790,11 +1077,15 @@ function initUI() {
     syncToggles(); saveSoon(); showHud(mode === 'cardboard');
   });
   $('hudEnd').addEventListener('click', endSession);
+  $('hudBreathe').addEventListener('click', endHold);
   $('btnDone').addEventListener('click', endSession);
   $('btnXR').addEventListener('click', enterXR);
   $('btnCard').addEventListener('click', enterCardboard);
   $('btnFlat').addEventListener('click', enterFlat);
-  addEventListener('keydown', e => { if (e.key === 'Escape' && mode !== 'idle' && mode !== 'xr') endSession(); });
+  addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && act && act.phase === 'hold') { e.preventDefault(); endHold(); }
+    else if (e.key === 'Escape' && mode !== 'idle' && mode !== 'xr') endSession();
+  });
 
   const note = $('xrNote'), bx = $('btnXR');
   const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
@@ -818,7 +1109,7 @@ function start(hot) {
   merge(saved);
   if (hot && Object.keys(hot).length) merge(hot);
   initUI();
-  const redraw = () => { breathLabel.userData.set(inhalePrev ? 'breathe in' : 'breathe out', true); };
+  const redraw = () => { const t = breathLabel.userData.text(); if (t) breathLabel.userData.set(t, true); };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw).catch(() => {});
   renderer.setAnimationLoop(loop);
 }
