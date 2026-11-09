@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05040a">
+<title>Cyberdelic VR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=Martian+Mono:wdth,wght@75..112.5,300..600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: full-bleed three.js scene (kaleidoscope dome + depth geometry); a scrollable glass setup card
+     floats over a live preview; a thin HUD replaces it during a session. Accent follows the live palette. */
+  --void:#05040a;
+  --glass:rgba(11,9,20,.62);
+  --glass-strong:rgba(11,9,20,.84);
+  --line:rgba(236,230,255,.15);
+  --ink:#f2eefc;
+  --dim:#a9a3c0;
+  --accent:rgb(255,92,210);
+  --font-display:"Major Mono Display", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-body:"Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;background:var(--void);color:var(--ink);overflow:hidden;overscroll-behavior:none;}
+body{font-family:var(--font-body);font-stretch:87.5%;font-size:11px;-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;}
+#gl:active{cursor:grabbing;}
+[hidden]{display:none !important;}
+
+.card{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px, calc(100% - 32px));
+  max-height:calc(100% - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;
+  display:flex;flex-direction:column;gap:16px;padding:20px;
+  background:var(--glass-strong);border:1px solid var(--line);border-radius:22px;
+  backdrop-filter:blur(20px) saturate(1.15);-webkit-backdrop-filter:blur(20px) saturate(1.15);
+}
+.brand{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:1;margin:0;text-shadow:0 0 18px var(--accent);}
+.lead{margin:8px 0 0;color:var(--dim);line-height:1.65;}
+.lead strong{color:var(--ink);font-weight:500;}
+
+.field{display:flex;flex-direction:column;gap:8px;}
+.field > .lbl{display:flex;justify-content:space-between;gap:8px;color:var(--dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;}
+.field output{color:var(--ink);font-variant-numeric:tabular-nums;}
+.chips{display:flex;gap:6px;}
+.chip{
+  flex:1 1 0;min-width:0;padding:9px 4px;border-radius:10px;cursor:pointer;font:inherit;font-size:10.5px;white-space:nowrap;
+  color:var(--dim);background:transparent;border:1px solid var(--line);transition:color .2s,border-color .2s;
+}
+.chip[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:rgba(255,255,255,.07);box-shadow:inset 0 0 16px -8px var(--accent);}
+
+input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer;}
+input[type="range"]:disabled{opacity:.35;cursor:not-allowed;}
+input[type="range"]::-webkit-slider-runnable-track{height:2px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p,50%),var(--line) var(--p,50%));}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-8px;border-radius:50%;border:0;background:var(--ink);box-shadow:0 0 0 4px rgba(5,4,10,.45),0 0 14px var(--accent);}
+input[type="range"]::-moz-range-track{height:2px;background:var(--line);}
+input[type="range"]::-moz-range-progress{height:2px;background:var(--accent);}
+input[type="range"]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:0;background:var(--ink);}
+
+.palettes{display:flex;gap:6px;}
+.swatch{flex:1;height:26px;padding:0;border-radius:8px;cursor:pointer;border:1px solid var(--line);}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:2px;}
+
+.toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.tog{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;border:1px solid var(--line);cursor:pointer;color:var(--dim);font:inherit;font-size:10px;text-align:left;background:transparent;}
+.tog .sw{width:28px;height:16px;border-radius:999px;background:var(--line);position:relative;transition:background .2s;}
+.tog .sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dim);transition:transform .2s, background .2s;}
+.tog[aria-pressed="true"]{color:var(--ink);}
+.tog[aria-pressed="true"] .sw{background:var(--accent);}
+.tog[aria-pressed="true"] .sw::after{transform:translateX(12px);background:var(--ink);}
+
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.btn{padding:13px 6px;border-radius:12px;cursor:pointer;font:inherit;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:transparent;border:1px solid var(--line);}
+.btn.primary{border-color:var(--accent);background:rgba(255,255,255,.07);box-shadow:inset 0 0 18px -6px var(--accent);}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;border-color:var(--line);}
+.note{margin:0;color:var(--dim);line-height:1.6;font-size:10px;}
+.note.ok{color:var(--ink);}
+.care{margin:0;padding-top:12px;border-top:1px solid var(--line);color:var(--dim);line-height:1.6;font-size:10px;}
+
+.hud{position:fixed;left:0;right:0;top:0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none;
+  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) 0 calc(env(safe-area-inset-left) + 16px);transition:opacity .4s;}
+.hud.faded{opacity:0;}
+.hud.faded *{pointer-events:none !important;}
+.ph{font-family:var(--font-display);font-size:20px;line-height:1;text-shadow:0 0 16px var(--accent),0 1px 3px rgba(0,0,0,.8);}
+.sub{margin-top:6px;color:var(--dim);font-size:10px;letter-spacing:.05em;text-shadow:0 1px 3px rgba(0,0,0,.9);max-width:30ch;line-height:1.5;}
+.hud-right{display:flex;align-items:center;gap:8px;pointer-events:auto;}
+.time{font-variant-numeric:tabular-nums;font-size:11px;letter-spacing:.06em;color:var(--ink);text-shadow:0 1px 3px rgba(0,0,0,.9);margin-right:4px;}
+.icon{width:40px;height:40px;border-radius:12px;padding:0;cursor:pointer;display:grid;place-items:center;color:var(--ink);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.icon[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%);max-width:calc(100% - 32px);
+  padding:10px 14px;border-radius:14px;background:var(--glass-strong);border:1px solid var(--line);color:var(--ink);font-size:10px;letter-spacing:.04em;line-height:1.5;text-align:center;pointer-events:none;opacity:0;transition:opacity .35s;}
+.toast.show{opacity:1;}
+.mini{gap:12px;}
+.mini h2{font-family:var(--font-display);font-weight:400;font-size:24px;margin:0;}
+.mini p{margin:0;color:var(--dim);line-height:1.65;}
+.err{position:fixed;inset:0;display:grid;place-items:center;padding:32px;text-align:center;line-height:1.7;color:var(--dim);font-size:12px;}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){ .hud,.toast,.chip,.tog .sw,.tog .sw::after{transition:none;} }
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Immersive kaleidoscope dome. Drag to look around."></canvas>
+
+<section class="card" id="setup" aria-labelledby="ttl">
+  <div>
+    <h1 class="brand" id="ttl">cyberdelic/vr</h1>
+    <p class="lead">A guided, breath-paced journey inside a kaleidoscopic dome. Visuals and sound build to a peak, then bring you back down gently. <strong>Best seated, with headphones.</strong></p>
+  </div>
+
+  <div class="field">
+    <div class="lbl"><span>Session</span><output id="lenOut">12 min</output></div>
+    <div class="chips" role="group" aria-label="Session length" id="lenChips">
+      <button class="chip" type="button" data-len="0" aria-pressed="false">Free</button>
+      <button class="chip" type="button" data-len="6" aria-pressed="false">6 min</button>
+      <button class="chip" type="button" data-len="12" aria-pressed="true">12 min</button>
+      <button class="chip" type="button" data-len="20" aria-pressed="false">20 min</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="lbl" for="bpm"><span>Breath pace</span><output id="bpmOut" for="bpm">5.5 / min</output></label>
+    <input type="range" id="bpm" min="4" max="8" step="0.5" value="5.5">
+  </div>
+
+  <div class="field">
+    <label class="lbl" for="inten"><span>Intensity · free mode</span><output id="intenOut" for="inten">70%</output></label>
+    <input type="range" id="inten" min="0.1" max="1" step="0.05" value="0.7" disabled>
+  </div>
+
+  <div class="field">
+    <div class="lbl"><span>Symmetry</span><output id="symOut">8-fold</output></div>
+    <div class="chips" role="group" aria-label="Symmetry" id="symChips">
+      <button class="chip" type="button" data-sym="6" aria-pressed="false">6</button>
+      <button class="chip" type="button" data-sym="8" aria-pressed="true">8</button>
+      <button class="chip" type="button" data-sym="12" aria-pressed="false">12</button>
+      <button class="chip" type="button" data-sym="16" aria-pressed="false">16</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="lbl"><span>Palette</span><output id="palOut">Prism</output></div>
+    <div class="palettes" id="palettes" role="group" aria-label="Palette"></div>
+  </div>
+
+  <div class="toggles">
+    <button class="tog" type="button" id="togSound" aria-pressed="true"><span class="sw"></span>Sound</button>
+    <button class="tog" type="button" id="togGuide" aria-pressed="true"><span class="sw"></span>Breath orb</button>
+    <button class="tog" type="button" id="togAnchor" aria-pressed="true"><span class="sw"></span>Floor ring</button>
+  </div>
+
+  <div class="field">
+    <div class="actions">
+      <button class="btn" type="button" id="btnXR" disabled>Enter VR</button>
+      <button class="btn primary" type="button" id="btnCard">Cardboard</button>
+      <button class="btn" type="button" id="btnFlat">Flat preview</button>
+    </div>
+    <p class="note" id="xrNote">Checking for a VR headset…</p>
+  </div>
+
+  <p class="care">Slow, intense color patterns with no flashing or strobing. Skip it if you have photosensitive epilepsy, and stop if you feel nauseous, dizzy or uneasy. The floor ring gives your eyes a fixed reference point, which helps with VR comfort.</p>
+</section>
+
+<div class="hud" id="hud" hidden>
+  <div>
+    <div class="ph" id="hudPhase">arrive</div>
+    <div class="sub" id="hudSub">Settle in. Breathe with the light.</div>
+  </div>
+  <div class="hud-right">
+    <span class="time" id="hudTime">12:00</span>
+    <button class="icon" type="button" id="hudSound" aria-pressed="true" aria-label="Sound" title="Sound"></button>
+    <button class="icon" type="button" id="hudEnd" aria-label="End session" title="End session">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+</div>
+
+<section class="card mini" id="done" hidden aria-labelledby="doneTtl">
+  <h2 id="doneTtl">complete</h2>
+  <p>Take a minute before you stand up or pick up your phone. Notice your breath, your hands, the room around you.</p>
+  <button class="btn primary" type="button" id="btnDone">Back to start</button>
+</section>
+
+<section class="card mini" id="inxr" hidden aria-labelledby="xrTtl">
+  <h2 id="xrTtl">in vr</h2>
+  <p>The session is running in your headset. Press the headset's menu or system button to exit.</p>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="err" id="err" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function showError(msg) { const e = $('err'); e.textContent = msg; e.hidden = false; $('setup').hidden = true; }
+if (!window.THREE) { showError("The 3D engine didn't load. Check your connection and reload the page."); return; }
+
+/* ---------- palettes ---------- */
+const PALETTES = [
+  { name: 'Prism',  a: [.5, .5, .5], b: [.5, .5, .5], c: [1, 1, 1],   d: [0, .33, .67] },
+  { name: 'Acid',   a: [.5, .5, .5], b: [.5, .5, .5], c: [1, 1, .5],  d: [.8, .9, .3] },
+  { name: 'Aurora', a: [.5, .5, .5], b: [.5, .5, .5], c: [1, .7, .4], d: [0, .15, .2] },
+  { name: 'Solar',  a: [.5, .5, .5], b: [.5, .5, .5], c: [2, 1, 0],   d: [.5, .2, .25] },
+  { name: 'Ultra',  a: [.8, .5, .4], b: [.2, .4, .2], c: [2, 1, 1],   d: [0, .25, .25] },
+];
+const palColor = (p, t, hue) => [0, 1, 2].map(i => p.a[i] + p.b[i] * Math.cos(TAU * (p.c[i] * t + p.d[i] + hue)));
+
+/* ---------- session arc ---------- */
+const PHASES = [
+  { name: 'arrive',   end: 0.12, sub: 'Settle in. Breathe with the light.' },
+  { name: 'unfold',   end: 0.38, sub: 'Let the pattern open around you.' },
+  { name: 'dissolve', end: 0.72, sub: 'Nothing to do. Keep breathing.' },
+  { name: 'return',   end: 0.92, sub: 'Coming back, slowly.' },
+  { name: 'rest',     end: 1.00, sub: 'Rest here. Remove the headset when ready.' },
+];
+function intensityAt(f) {
+  if (f < 0.12) return 0.08 * ss(0, 0.12, f);
+  if (f < 0.38) return 0.08 + 0.72 * ss(0.12, 0.38, f);
+  if (f < 0.72) return 0.8 + 0.2 * Math.sin(Math.PI * (f - 0.38) / 0.34);
+  if (f < 0.92) return 0.8 - 0.7 * ss(0.72, 0.92, f);
+  return 0.1 - 0.08 * ss(0.92, 1, f);
+}
+const phaseIndex = f => { for (let i = 0; i < PHASES.length; i++) if (f < PHASES[i].end) return i; return PHASES.length - 1; };
+
+/* ---------- settings ---------- */
+const DEFAULTS = { len: 12, bpm: 5.5, intensity: 0.7, sym: 8, palette: 0, sound: true, guide: true, anchor: true };
+const state = Object.assign({}, DEFAULTS);
+const KEY = 'cyberdelic-vr.v1';
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function merge(src) {
+  if (!src || typeof src !== 'object') return;
+  for (const k of Object.keys(DEFAULTS)) if (k in src && typeof src[k] === typeof DEFAULTS[k]) state[k] = src[k];
+  if (![0, 6, 12, 20].includes(state.len)) state.len = 12;
+  if (![6, 8, 12, 16].includes(state.sym)) state.sym = 8;
+  state.bpm = clamp(+state.bpm || 5.5, 4, 8);
+  state.intensity = clamp(+state.intensity || 0.7, 0.1, 1);
+  state.palette = clamp(state.palette | 0, 0, PALETTES.length - 1);
+}
+let saveT = 0;
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }, 300); }
+
+/* ---------- renderer + scene ---------- */
+const canvas = $('gl');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+catch (e) { showError("This browser can't run WebGL, so the 3D scene can't start here."); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(innerWidth, innerHeight, false);
+renderer.setClearColor(0x05040a, 1);
+renderer.xr.enabled = true;
+if (renderer.xr.setFramebufferScaleFactor) renderer.xr.setFramebufferScaleFactor(0.85);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 200);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
+const stereo = new THREE.StereoCamera();
+stereo.aspect = 0.5; stereo.eyeSep = 0.064;
+
+const U = {
+  uTime: { value: 0 }, uI: { value: 0.45 }, uB: { value: 0 }, uHue: { value: 0 }, uSym: { value: 8 },
+  pA: { value: new THREE.Vector3() }, pB: { value: new THREE.Vector3() }, pC: { value: new THREE.Vector3() }, pD: { value: new THREE.Vector3() },
+};
+const PAL = `uniform vec3 pA; uniform vec3 pB; uniform vec3 pC; uniform vec3 pD; uniform float uHue;
+vec3 pal(float t){ return pA + pB * cos(6.28318530718 * (pC * t + pD + uHue)); }`;
+function applyPalette() {
+  const p = PALETTES[state.palette];
+  U.pA.value.fromArray(p.a); U.pB.value.fromArray(p.b); U.pC.value.fromArray(p.c); U.pD.value.fromArray(p.d);
+}
+
+/* Dome: an azimuthal kaleidoscope centered straight ahead, wrapping all the way around you */
+const dome = new THREE.Mesh(new THREE.SphereGeometry(60, 64, 32), new THREE.ShaderMaterial({
+  uniforms: U, side: THREE.BackSide, depthWrite: false,
+  vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform float uTime; uniform float uI; uniform float uB; uniform float uSym;
+${PAL}
+varying vec3 vDir;
+vec2 kfold(vec2 p, float n){ float seg = 6.28318530718 / n; float a = atan(p.y, p.x); a = abs(mod(a + seg * 0.5, seg) - seg * 0.5); return vec2(cos(a), sin(a)) * length(p); }
+void main(){
+  vec3 d = normalize(vDir);
+  float rad = acos(clamp(-d.z, -1.0, 1.0));
+  float a = atan(d.y, d.x);
+  float zoom = mix(1.35, 0.95, uI) * (1.0 - 0.05 * uB);
+  vec2 p = kfold(vec2(cos(a), sin(a)) * rad * zoom, uSym);
+  vec2 p0 = p;
+  float t = uTime;
+  vec3 col = vec3(0.0);
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    p = fract(p * (1.3 + 0.25 * uI) + 0.05 * sin(t * 0.13 + fi)) - 0.5;
+    float dd = length(p) * exp(-length(p0) * 0.7);
+    vec3 c = pal(length(p0) * 0.6 + fi * 0.37 + t * 0.03);
+    dd = abs(sin(dd * 8.0 + t * 0.6) / 8.0);
+    col += c * (0.0095 / max(dd, 3e-4));
+  }
+  col = 1.0 - exp(-col * 0.75);
+  vec3 neb = pal(rad * 0.35 + t * 0.01) * (0.06 + 0.04 * uB) * (1.0 - smoothstep(0.4, 3.0, rad));
+  col = neb + col * smoothstep(0.03, 0.7, uI) * (0.6 + 0.4 * uB);
+  col *= mix(1.0, 0.4, smoothstep(1.7, 3.0, rad));
+  gl_FragColor = vec4(col, 1.0);
+}`
+}));
+dome.renderOrder = -10;
+scene.add(dome);
+
+/* Crystal shells: fresnel-lit polyhedra that give the scene real stereo depth */
+const shellVS = `varying vec3 vN; varying vec3 vV;
+void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+const shellFS = `uniform float uTime; uniform float uOff; uniform float uOpacity;
+${PAL}
+varying vec3 vN; varying vec3 vV;
+void main(){ float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); vec3 col = pal(uOff + f * 0.6 + uTime * 0.03) * (0.02 + 1.2 * f * f * f); gl_FragColor = vec4(col * uOpacity, 1.0); }`;
+function shellMat(off) {
+  return new THREE.ShaderMaterial({
+    uniforms: Object.assign({}, U, { uOff: { value: off }, uOpacity: { value: 0 } }),
+    vertexShader: shellVS, fragmentShader: shellFS,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+}
+const mandala = new THREE.Group();
+mandala.position.set(0, 0.15, -5.5);
+scene.add(mandala);
+const shellDefs = [
+  { geo: new THREE.OctahedronGeometry(0.55, 0), off: 0.0, spin: [0.11, 0.17] },
+  { geo: new THREE.IcosahedronGeometry(1.05, 0), off: 0.25, spin: [-0.07, 0.09] },
+  { geo: new THREE.DodecahedronGeometry(1.65, 0), off: 0.5, spin: [0.05, -0.06] },
+  { geo: new THREE.IcosahedronGeometry(2.5, 1), off: 0.75, spin: [-0.03, 0.04] },
+];
+const shells = shellDefs.map(d => {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(d.geo, shellMat(d.off));
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(d.geo), new THREE.LineBasicMaterial({ transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  g.add(m, e); mandala.add(g);
+  return { g, m, e, d };
+});
+
+/* Orbiters: small crystals circling you slowly at arm's-length-plus */
+const orbitGroup = new THREE.Group();
+scene.add(orbitGroup);
+const orbiters = [];
+for (let i = 0; i < 8; i++) {
+  const geo = new THREE.OctahedronGeometry(0.16, 0);
+  const m = new THREE.Mesh(geo, shellMat(i / 8));
+  const a = (i / 8) * TAU;
+  m.userData = { a, h: Math.sin(i * 1.7) * 0.6, r: 3.2 + (i % 2) * 0.6 };
+  orbitGroup.add(m); orbiters.push(m);
+}
+
+/* Particles: slow-rising motes in a shell around you (all motion computed on the GPU) */
+const N = 1600;
+const pos = new Float32Array(N * 3), seed = new Float32Array(N);
+for (let i = 0; i < N; i++) {
+  const r = 2.5 + Math.pow(Math.random(), 0.7) * 16, a = Math.random() * TAU;
+  pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = (Math.random() * 2 - 1) * 12; pos[i * 3 + 2] = Math.sin(a) * r;
+  seed[i] = Math.random();
+}
+const pgeo = new THREE.BufferGeometry();
+pgeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+pgeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+const PU = Object.assign({}, U, { uScale: { value: 500 } });
+const particles = new THREE.Points(pgeo, new THREE.ShaderMaterial({
+  uniforms: PU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `attribute float aSeed; uniform float uTime; uniform float uI; uniform float uB; uniform float uScale;
+varying float vA; varying float vSeed;
+void main(){
+  float r = length(position.xz);
+  float ang = atan(position.z, position.x) + uTime * (0.01 + 0.02 * aSeed);
+  float y = mod(position.y + uTime * (0.05 + 0.1 * aSeed) + 12.0, 24.0) - 12.0;
+  vec3 q = vec3(cos(ang) * r, y, sin(ang) * r) * (1.0 + 0.03 * uB);
+  vec4 mv = modelViewMatrix * vec4(q, 1.0);
+  gl_PointSize = clamp(uScale * (0.03 + 0.05 * aSeed) / max(-mv.z, 0.1), 1.0, 40.0);
+  vA = (1.0 - smoothstep(9.0, 12.0, abs(y))) * (0.25 + 0.75 * uI);
+  vSeed = aSeed;
+  gl_Position = projectionMatrix * mv;
+}`,
+  fragmentShader: `uniform float uTime;
+${PAL}
+varying float vA; varying float vSeed;
+void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(pal(vSeed + uTime * 0.02), a * a * vA); }`
+}));
+particles.frustumCulled = false;
+scene.add(particles);
+
+/* Floor ring: a fixed reference under you for comfort */
+const AU = Object.assign({}, U, { uOp: { value: 1 } });
+const anchor = new THREE.Mesh(new THREE.CircleGeometry(2.6, 96), new THREE.ShaderMaterial({
+  uniforms: AU, transparent: true, depthWrite: false,
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform float uOp; uniform float uB;
+${PAL}
+varying vec2 vUv;
+void main(){
+  vec2 p = (vUv - 0.5) * 5.2; float r = length(p);
+  float fr = fract(r * 2.0); float ring = 1.0 - smoothstep(0.0, 0.035, min(fr, 1.0 - fr));
+  float fs = fract(atan(p.y, p.x) / 6.28318530718 * 16.0); float spoke = 1.0 - smoothstep(0.0, 0.02, min(fs, 1.0 - fs) * r * 0.3927);
+  float m = max(ring, spoke * 0.6) * (1.0 - smoothstep(1.4, 2.6, r)) * smoothstep(0.15, 0.45, r);
+  vec3 col = mix(vec3(0.78, 0.75, 0.92), pal(r * 0.2 + 0.3), 0.35);
+  gl_FragColor = vec4(col, m * uOp * (0.2 + 0.08 * uB));
+}`
+}));
+anchor.rotation.x = -Math.PI / 2;
+anchor.position.y = -1.2;
+scene.add(anchor);
+
+/* Breath orb + labels */
+function glowTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+const orb = new THREE.Group();
+orb.position.set(0, -0.08, -1.5);
+scene.add(orb);
+const orbCore = new THREE.Mesh(new THREE.SphereGeometry(0.06, 32, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
+const orbGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
+orbGlow.scale.set(0.55, 0.55, 1);
+const orbRing = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.168, 96), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+orb.add(orbGlow, orbCore, orbRing);
+
+function textSprite(w, h, size) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+  s.renderOrder = 10;
+  let current = '';
+  s.userData.set = (text, force) => {
+    if (text === current && !force) return; current = text;
+    g.clearRect(0, 0, w, h);
+    g.font = `400 ${size}px "Major Mono Display", ui-monospace, monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(0,0,0,.85)'; g.shadowBlur = 14;
+    g.fillStyle = 'rgba(242,238,252,.96)';
+    g.fillText(text, w / 2, h / 2);
+    tex.needsUpdate = true;
+  };
+  return s;
+}
+const breathLabel = textSprite(512, 128, 52);
+breathLabel.scale.set(0.5, 0.125, 1);
+breathLabel.position.set(0, -0.36, -1.5);
+const phaseLabel = textSprite(1024, 192, 110);
+phaseLabel.scale.set(1.6, 0.3, 1);
+phaseLabel.position.set(0, 0.78, -2.4);
+const subLabel = textSprite(1536, 128, 40);
+subLabel.scale.set(1.8, 0.15, 1);
+subLabel.position.set(0, 0.55, -2.4);
+scene.add(breathLabel, phaseLabel, subLabel);
+
+/* ---------- sound: drone that swells with each breath and opens up at the peak ---------- */
+const Sound = (() => {
+  let ctx = null, master, filter, shimmer, on = 0;
+  function build() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) throw new Error('No Web Audio');
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = 0;
+    filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 500; filter.Q.value = 3;
+    const len = Math.floor(ctx.sampleRate * 3.5), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4); }
+    const conv = ctx.createConvolver(); conv.buffer = ir;
+    const wet = ctx.createGain(); wet.gain.value = 0.6;
+    const dry = ctx.createGain(); dry.gain.value = 0.55;
+    filter.connect(dry); filter.connect(conv); conv.connect(wet); dry.connect(master); wet.connect(master); master.connect(ctx.destination);
+    const root = 55;
+    const voice = (ratio, type, det, pan, gain, dest) => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = root * ratio; o.detune.value = det;
+      const g = ctx.createGain(); g.gain.value = gain; o.connect(g);
+      if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(dest); } else g.connect(dest);
+      o.start();
+    };
+    voice(1, 'sawtooth', -7, -0.6, 0.14, filter);
+    voice(1, 'sawtooth', 7, 0.6, 0.14, filter);
+    voice(1.5, 'triangle', 0, -0.25, 0.1, filter);
+    voice(2, 'sine', 3, 0.3, 0.12, filter);
+    shimmer = ctx.createGain(); shimmer.gain.value = 0; shimmer.connect(filter);
+    const trem = ctx.createOscillator(); trem.frequency.value = 0.15;
+    const tremG = ctx.createGain(); tremG.gain.value = 0.35; trem.connect(tremG); tremG.connect(shimmer.gain); trem.start();
+    voice(3, 'sine', 0, -0.5, 0.05, shimmer);
+    voice(4, 'sine', 4, 0.5, 0.045, shimmer);
+    voice(6, 'sine', -4, 0, 0.03, shimmer);
+  }
+  return {
+    start() { if (!ctx) build(); if (ctx.resume) ctx.resume().catch(() => {}); on = 1; },
+    stop() { on = 0; if (ctx) master.gain.setTargetAtTime(0, ctx.currentTime, 0.25); },
+    update(I, b) {
+      if (!ctx) return;
+      const t = ctx.currentTime;
+      filter.frequency.setTargetAtTime(220 + 700 * b + 1400 * I, t, 0.25);
+      master.gain.setTargetAtTime(on * (0.1 + 0.14 * I), t, 0.5);
+      shimmer.gain.setTargetAtTime(I * I * 0.9, t, 0.8);
+    },
+  };
+})();
+
+/* ---------- look controls (flat + cardboard) ---------- */
+let yaw = 0, pitch = 0, orient = null, alpha0 = null;
+const zee = new THREE.Vector3(0, 0, 1), eul = new THREE.Euler(), q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+function onOrient(e) { if (e.alpha == null) return; if (alpha0 == null) alpha0 = e.alpha; orient = e; }
+function applyLook() {
+  if (mode === 'cardboard' && orient) {
+    const d2r = THREE.MathUtils.degToRad;
+    const so = d2r((screen.orientation && screen.orientation.angle) || window.orientation || 0);
+    eul.set(d2r(orient.beta), d2r(orient.alpha - alpha0) + yaw, -d2r(orient.gamma), 'YXZ');
+    camera.quaternion.setFromEuler(eul);
+    camera.quaternion.multiply(q1);
+    camera.quaternion.multiply(q0.setFromAxisAngle(zee, -so));
+  } else {
+    camera.rotation.set(pitch, yaw, 0);
+  }
+}
+{
+  let drag = null;
+  canvas.addEventListener('pointerdown', e => { try { canvas.setPointerCapture(e.pointerId); } catch (_) {} drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() }; });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const k = 0.0045;
+    yaw += (e.clientX - drag.x) * k;
+    if (!(mode === 'cardboard' && orient)) pitch = clamp(pitch + (e.clientY - drag.y) * k, -1.3, 1.3);
+    drag.x = e.clientX; drag.y = e.clientY;
+  });
+  const up = e => {
+    if (drag && performance.now() - drag.t < 300 && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 8 && mode !== 'idle') showHud(true);
+    drag = null;
+  };
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', () => { drag = null; });
+}
+
+/* ---------- session state ---------- */
+let mode = 'idle'; // idle | flat | cardboard | xr
+let sessionT = 0, I = 0.45, bphase = 0, shaderT = 0, hue = 0, phaseIdx = -1, labelT = 99, inhalePrev = null, complete = false;
+let audioT = 0, hudT = 0, accentT = 0, lastAccent = '', hudHideT = 0;
+
+function setSoundIcon() {
+  const b = $('hudSound');
+  b.setAttribute('aria-pressed', String(state.sound));
+  b.innerHTML = state.sound
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h3.5L12 5v14l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h3.5L12 5v14l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
+}
+let toastT = 0;
+function toast(msg, ms = 3200) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms); }
+function showHud(temp) {
+  const h = $('hud'); h.classList.remove('faded');
+  hudHideT = (mode === 'cardboard' || temp) ? 3.5 : 0;
+}
+
+function beginSession(m) {
+  mode = m; sessionT = 0; phaseIdx = -1; complete = false; inhalePrev = null; bphase = 0;
+  $('setup').hidden = true; $('done').hidden = true;
+  if (m === 'xr') { $('inxr').hidden = false; $('hud').hidden = true; }
+  else { $('hud').hidden = false; showHud(m === 'cardboard'); }
+  if (m === 'cardboard' && innerHeight > innerWidth) toast('Turn your phone sideways and place it in your viewer.', 5000);
+}
+function endSession() {
+  if (mode === 'cardboard') {
+    removeEventListener('deviceorientation', onOrient);
+    orient = null; alpha0 = null;
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+  }
+  mode = 'idle'; complete = false;
+  Sound.stop();
+  $('hud').hidden = true; $('inxr').hidden = true; $('done').hidden = true; $('setup').hidden = false;
+  phaseLabel.material.opacity = subLabel.material.opacity = breathLabel.material.opacity = 0;
+  onResize();
+}
+function startAudioIfOn() { if (state.sound) { try { Sound.start(); } catch (e) { state.sound = false; syncToggles(); toast("Sound isn't available in this browser."); } } }
+
+async function enterXR() {
+  if (!navigator.xr) return;
+  startAudioIfOn();
+  try {
+    const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    renderer.xr.setReferenceSpaceType('local');
+    await renderer.xr.setSession(session);
+    beginSession('xr');
+    session.addEventListener('end', () => endSession());
+  } catch (e) {
+    Sound.stop();
+    const why = e && e.name === 'SecurityError' ? 'this page is embedded somewhere that blocks VR' : e && e.name === 'NotSupportedError' ? 'this browser has no VR support' : (e && e.name) || 'unknown error';
+    $('xrNote').textContent = "VR didn't start: " + why + ". Cardboard and flat preview still work.";
+  }
+}
+function enterCardboard() {
+  startAudioIfOn();
+  const el = document.documentElement;
+  try { const r = el.requestFullscreen && el.requestFullscreen({ navigationUI: 'hide' }); if (r && r.then) r.then(() => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {}); } catch (e) {}
+  const begin = () => { addEventListener('deviceorientation', onOrient); beginSession('cardboard'); yaw = 0; pitch = 0; };
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(begin, begin);
+      return;
+    }
+  } catch (e) {}
+  begin();
+}
+function enterFlat() { startAudioIfOn(); beginSession('flat'); }
+
+/* ---------- main loop ---------- */
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector2();
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const timeScale = reduceMotion ? 0.5 : 1;
+
+  let target, f = 0;
+  if (mode === 'idle') target = 0.45;
+  else if (state.len === 0) target = state.intensity;
+  else { sessionT += dt; f = sessionT / (state.len * 60); target = intensityAt(Math.min(f, 1)); }
+  I += (target - I) * (1 - Math.exp(-dt * 0.8));
+
+  // XR thumbstick nudges intensity in free mode
+  if (renderer.xr.isPresenting && state.len === 0) {
+    const s = renderer.xr.getSession();
+    if (s) for (const src of s.inputSources) { const gp = src.gamepad; if (gp && gp.axes && gp.axes.length >= 4 && Math.abs(gp.axes[3]) > 0.2) state.intensity = clamp(state.intensity - gp.axes[3] * dt * 0.25, 0.1, 1); }
+  }
+
+  bphase = (bphase + dt / (60 / state.bpm)) % 1;
+  const b = 0.5 - 0.5 * Math.cos(TAU * bphase);
+  const inhale = bphase < 0.5;
+  shaderT += dt * (0.35 + 0.65 * I) * timeScale;
+  hue += dt * 0.004 * (0.3 + I) * timeScale;
+
+  U.uTime.value = shaderT; U.uI.value = I; U.uB.value = b; U.uHue.value = hue; U.uSym.value = state.sym;
+
+  // mandala + shells
+  const showGeo = ss(0.12, 0.6, I);
+  mandala.scale.setScalar(1 + 0.12 * b);
+  const pc = palColor(PALETTES[state.palette], 0.35, hue);
+  shells.forEach((s, i) => {
+    s.g.rotation.x += dt * s.d.spin[0] * timeScale;
+    s.g.rotation.y += dt * s.d.spin[1] * timeScale;
+    const op = showGeo * (i === 3 ? 0.28 : 0.55);
+    s.m.material.uniforms.uOpacity.value = op;
+    s.e.material.opacity = op * 0.35;
+    s.e.material.color.setRGB(clamp(pc[0], 0, 1), clamp(pc[1], 0, 1), clamp(pc[2], 0, 1));
+  });
+  orbiters.forEach(o => {
+    const u = o.userData; u.a += dt * 0.025 * timeScale;
+    o.position.set(Math.cos(u.a) * u.r, u.h + 0.1 * Math.sin(shaderT * 0.3 + u.a * 3), Math.sin(u.a) * u.r);
+    o.rotation.x += dt * 0.2; o.rotation.y += dt * 0.15;
+    o.scale.setScalar(1 + 0.25 * b);
+    o.material.uniforms.uOpacity.value = ss(0.25, 0.7, I) * 0.9;
+  });
+  PU.uScale.value = renderer.xr.isPresenting ? 700 : renderer.getDrawingBufferSize(tmpV).y / 1.53;
+  AU.uOp.value += ((state.anchor ? 1 : 0) - AU.uOp.value) * (1 - Math.exp(-dt * 3));
+  anchor.visible = AU.uOp.value > 0.01;
+
+  // breath orb
+  const peak = state.len !== 0 && f > 0.38 && f < 0.72;
+  const orbVis = (mode !== 'idle' && state.guide) ? (peak ? 0.45 : 1) : 0;
+  orb.userData.v = (orb.userData.v || 0) + (orbVis - (orb.userData.v || 0)) * (1 - Math.exp(-dt * 2));
+  const ov = orb.userData.v;
+  orb.visible = ov > 0.01;
+  orbCore.scale.setScalar(0.75 + 0.5 * b);
+  orbCore.material.opacity = ov;
+  const oc = palColor(PALETTES[state.palette], 0.15, hue);
+  orbGlow.material.color.setRGB(0.5 + 0.5 * clamp(oc[0], 0, 1), 0.5 + 0.5 * clamp(oc[1], 0, 1), 0.5 + 0.5 * clamp(oc[2], 0, 1));
+  orbGlow.material.opacity = ov * (0.55 + 0.45 * b);
+  orbGlow.scale.setScalar(0.4 + 0.3 * b);
+  orbRing.scale.setScalar(1 + 0.6 * b);
+  orbRing.material.opacity = ov * 0.55 * (1 - 0.4 * b);
+  if (inhale !== inhalePrev) { breathLabel.userData.set(inhale ? 'breathe in' : 'breathe out'); inhalePrev = inhale; }
+  breathLabel.material.opacity = ov * 0.85 * (0.35 + 0.65 * Math.sin(Math.PI * ((bphase * 2) % 1)));
+
+  // phases
+  if (mode !== 'idle') {
+    let pi, name, sub;
+    if (state.len === 0) { pi = 0; name = 'free'; sub = 'Stay as long as you like.'; }
+    else { pi = phaseIdx === -2 ? -2 : phaseIndex(Math.min(f, 0.9999)); name = PHASES[Math.max(pi, 0)].name; sub = PHASES[Math.max(pi, 0)].sub; }
+    if (state.len !== 0 && f >= 1 && !complete) {
+      complete = true; pi = -2; name = 'complete'; sub = 'Take your time coming back.';
+      phaseLabel.userData.set(name); subLabel.userData.set(sub); labelT = 0;
+      if (mode !== 'xr') { $('hud').hidden = true; $('done').hidden = false; }
+    }
+    if (pi !== phaseIdx && !complete) {
+      phaseIdx = pi; phaseLabel.userData.set(name); subLabel.userData.set(sub); labelT = 0;
+      $('hudPhase').textContent = name; $('hudSub').textContent = sub;
+    }
+    if (complete) phaseIdx = -2;
+    labelT += dt;
+    const lo = labelT < 1.5 ? labelT / 1.5 : labelT < 6 ? 1 : Math.max(0, 1 - (labelT - 6) / 1.5);
+    phaseLabel.material.opacity = lo; subLabel.material.opacity = lo * 0.8;
+
+    hudT += dt;
+    if (hudT > 0.25) {
+      hudT = 0;
+      if (state.len === 0) $('hudTime').textContent = Math.round(state.intensity * 100) + '%';
+      else { const rem = Math.max(0, state.len * 60 - sessionT); $('hudTime').textContent = String(Math.floor(rem / 60)).padStart(2, '0') + ':' + String(Math.floor(rem % 60)).padStart(2, '0'); }
+    }
+    if (hudHideT > 0) { hudHideT -= dt; if (hudHideT <= 0) $('hud').classList.add('faded'); }
+  }
+
+  // audio + accent
+  audioT += dt; if (audioT > 0.1) { audioT = 0; Sound.update(I, b); }
+  accentT += dt;
+  if (accentT > 0.3) {
+    accentT = 0;
+    let c = palColor(PALETTES[state.palette], 0.15, hue).map(v => Math.max(0, v));
+    const m = Math.max(c[0], c[1], c[2], 0.001);
+    const q = c.map(v => Math.min(255, Math.round(((v / m) * 0.82 + 0.18) * 255 / 6) * 6));
+    const s = `rgb(${q.join(',')})`;
+    if (s !== lastAccent) { document.documentElement.style.setProperty('--accent', s); lastAccent = s; }
+  }
+
+  // render
+  if (renderer.xr.isPresenting) { renderer.render(scene, camera); return; }
+  applyLook();
+  if (mode === 'cardboard') {
+    camera.updateMatrixWorld();
+    stereo.update(camera);
+    const w = innerWidth, h = innerHeight;
+    renderer.setScissorTest(true);
+    renderer.setScissor(0, 0, w / 2, h); renderer.setViewport(0, 0, w / 2, h); renderer.render(scene, stereo.cameraL);
+    renderer.setScissor(w / 2, 0, w / 2, h); renderer.setViewport(w / 2, 0, w / 2, h); renderer.render(scene, stereo.cameraR);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
+  } else {
+    renderer.render(scene, camera);
+  }
+}
+
+function onResize() {
+  if (renderer.xr.isPresenting) return;
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', onResize);
+
+/* ---------- setup UI ---------- */
+function syncRange(id, v, text) {
+  const el = $(id); el.value = v;
+  el.style.setProperty('--p', ((v - parseFloat(el.min)) / (parseFloat(el.max) - parseFloat(el.min))) * 100 + '%');
+  $(id + 'Out').textContent = text;
+}
+function syncAll() {
+  document.querySelectorAll('#lenChips .chip').forEach(c => c.setAttribute('aria-pressed', String(+c.dataset.len === state.len)));
+  $('lenOut').textContent = state.len === 0 ? 'Free · no timer' : state.len + ' min';
+  document.querySelectorAll('#symChips .chip').forEach(c => c.setAttribute('aria-pressed', String(+c.dataset.sym === state.sym)));
+  $('symOut').textContent = state.sym + '-fold';
+  syncRange('bpm', state.bpm, state.bpm.toFixed(1) + ' / min');
+  syncRange('inten', state.intensity, Math.round(state.intensity * 100) + '%');
+  $('inten').disabled = state.len !== 0;
+  document.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.pal === state.palette)));
+  $('palOut').textContent = PALETTES[state.palette].name;
+  syncToggles();
+  applyPalette();
+}
+function syncToggles() {
+  $('togSound').setAttribute('aria-pressed', String(state.sound));
+  $('togGuide').setAttribute('aria-pressed', String(state.guide));
+  $('togAnchor').setAttribute('aria-pressed', String(state.anchor));
+  setSoundIcon();
+}
+function initUI() {
+  document.querySelectorAll('#lenChips .chip').forEach(c => c.addEventListener('click', () => { state.len = +c.dataset.len; syncAll(); saveSoon(); }));
+  document.querySelectorAll('#symChips .chip').forEach(c => c.addEventListener('click', () => { state.sym = +c.dataset.sym; syncAll(); saveSoon(); }));
+  $('bpm').addEventListener('input', () => { state.bpm = parseFloat($('bpm').value); syncAll(); saveSoon(); });
+  $('inten').addEventListener('input', () => { state.intensity = parseFloat($('inten').value); syncAll(); saveSoon(); });
+  const pw = $('palettes');
+  PALETTES.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'swatch'; b.dataset.pal = i; b.title = p.name; b.setAttribute('aria-label', p.name + ' palette');
+    const stops = [];
+    for (let s = 0; s <= 6; s++) stops.push(`rgb(${palColor(p, s / 6, 0).map(v => Math.round(clamp(v, 0, 1) * 255)).join(',')}) ${Math.round(s / 6 * 100)}%`);
+    b.style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+    b.addEventListener('click', () => { state.palette = i; syncAll(); saveSoon(); });
+    pw.appendChild(b);
+  });
+  $('togSound').addEventListener('click', () => { state.sound = !state.sound; syncToggles(); saveSoon(); });
+  $('togGuide').addEventListener('click', () => { state.guide = !state.guide; syncToggles(); saveSoon(); });
+  $('togAnchor').addEventListener('click', () => { state.anchor = !state.anchor; syncToggles(); saveSoon(); });
+  $('hudSound').addEventListener('click', () => {
+    state.sound = !state.sound;
+    if (state.sound) startAudioIfOn(); else Sound.stop();
+    syncToggles(); saveSoon(); showHud(mode === 'cardboard');
+  });
+  $('hudEnd').addEventListener('click', endSession);
+  $('btnDone').addEventListener('click', endSession);
+  $('btnXR').addEventListener('click', enterXR);
+  $('btnCard').addEventListener('click', enterCardboard);
+  $('btnFlat').addEventListener('click', enterFlat);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && mode !== 'idle' && mode !== 'xr') endSession(); });
+
+  const note = $('xrNote'), bx = $('btnXR');
+  const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  const unavailable = !window.isSecureContext
+    ? "VR needs a secure page. Open this page over https://, not http://."
+    : framed
+      ? "Headsets can't start VR from inside the Claude viewer. Open the hosted copy of this page in your headset's browser. Cardboard and flat preview work here."
+      : "No VR headset detected. Open this page in your headset's browser (such as Meta Quest Browser) and Enter VR will light up.";
+  if (navigator.xr && navigator.xr.isSessionSupported) {
+    navigator.xr.isSessionSupported('immersive-vr').then(ok => {
+      if (ok) { bx.disabled = false; bx.classList.add('primary'); $('btnCard').classList.remove('primary'); note.textContent = 'VR headset ready. Press Enter VR, then put it on.'; note.classList.add('ok'); }
+      else note.textContent = unavailable;
+    }).catch(() => { note.textContent = unavailable; });
+  } else note.textContent = unavailable;
+  syncAll();
+}
+
+/* ---------- boot ---------- */
+function start(hot) {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  merge(saved);
+  if (hot && Object.keys(hot).length) merge(hot);
+  initUI();
+  const redraw = () => { breathLabel.userData.set(inhalePrev ? 'breathe in' : 'breathe out', true); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw).catch(() => {});
+  renderer.setAnimationLoop(loop);
+}
+window.claude?.hot?.snapshot?.(() => Object.assign({}, state));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
